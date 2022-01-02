@@ -34,39 +34,27 @@ def eye_aspect_ratio(shape, side, frame):
     return round(EAR)
 
 
-def calibrate_wink(cap, interval):
-	left_val = []
-	right_val = []
-	t_start = time.time()
-	while(time.time() - t_start < interval):
-		ret, frame = cap.read()
-		# transfer to graystyle
-		gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-		faces = detector(gray_frame, 1)
-		wink = "none"
-		for face in faces:
-			shape = predictor(gray_frame, face)
-			shape = shape_to_np(shape)
-			EAR_left = eye_aspect_ratio(shape, left, frame)
-			EAR_right = eye_aspect_ratio(shape, right, frame)
-			left_val.append(EAR_left)
-			right_val.append(EAR_right)
-			if EAR_left < 300 or EAR_right < 300:
-				EAR_ratio = EAR_left / EAR_right
-				if EAR_ratio < 0.9:
-					wink = "left"
-				elif EAR_ratio > 1/0.9:
-					wink = "right"
-				else:
-					wink = "both"
-			if wink != "none":
-				print(wink, (EAR_left, EAR_right))
-		cv2.imshow('frame', frame)
-		cv2.waitKey(1)
-		# if cv2.waitKey(1) & 0xFF == ord('q'):
-		# 	break
+def calibrate_wink(cap):
+	ret, frame = cap.read()
+	# transfer to graystyle
+	gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+	faces = detector(gray_frame, 1)
+	wink = "none"
+	if not faces:
+		cv2.imwrite('./src/frame.PNG', frame)
+		return
+	for face in faces:
+		shape = predictor(gray_frame, face)
+		shape = shape_to_np(shape)
+		EAR_left = eye_aspect_ratio(shape, left, frame)
+		EAR_right = eye_aspect_ratio(shape, right, frame)
+		# left_val.append(EAR_left)
+		# right_val.append(EAR_right)
+	cv2.imwrite('./src/frame.PNG', frame)
+	# if cv2.waitKey(1) & 0xFF == ord('q'):
+	# 	break
 	
-	return left_val, right_val
+	return (EAR_left, EAR_right)
 
 def motion(window, standard):
 	left = 0
@@ -74,8 +62,8 @@ def motion(window, standard):
 	for val in window:
 		left += val[0]
 		right += val[1]
-	left /= 3
-	right /= 3
+	left /= len(window)
+	right /= len(window)
 	# print(window)
 	# print(left, right)
 	open_delta = abs(standard[0][0] - left) + abs(standard[0][1] - right)
@@ -91,25 +79,22 @@ def motion(window, standard):
 	return 'both eyes closed'
         
 
-def detect_wink(cap, standard):
-	window = []
-	while(1):
-		ret, frame = cap.read()
-		gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-		faces = detector(gray_frame, 1)
-		for face in faces:
-			shape = predictor(gray_frame, face)
-			shape = shape_to_np(shape)
-			EAR_left = eye_aspect_ratio(shape, left, frame)
-			EAR_right = eye_aspect_ratio(shape, right, frame)
-			window.append((EAR_left, EAR_right))
-			if len(window) > 3:
-				window.pop(0)
-			wink = motion(window, standard)
+def detect_wink(cap, standard, window):
+	ret, frame = cap.read()
+	gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+	faces = detector(gray_frame, 1)
+	for face in faces:
+		shape = predictor(gray_frame, face)
+		shape = shape_to_np(shape)
+		EAR_left = eye_aspect_ratio(shape, left, frame)
+		EAR_right = eye_aspect_ratio(shape, right, frame)
+		window.append((EAR_left, EAR_right))
+		if len(window) > 3:
+			window.pop(0)
+		wink = motion(window, standard)
 		cv2.putText(frame, wink, (10, 120), cv2.FONT_HERSHEY_DUPLEX, 1, (0, 255, 255), 1, cv2.LINE_AA)
-		cv2.imshow('frame', frame)
-		if cv2.waitKey(1) & 0xFF == ord('q'):
-			break
+		cv2.imwrite('./src/frame.PNG', frame)
+	
 
 
 def ave(left, right):
@@ -117,38 +102,63 @@ def ave(left, right):
         return 0
     return sum(left) / len(left), sum(right) / len(right)
 
-def calibration(cap):
-	standard = []
-	# both opened
-	input('Keep both your eyes opened for 5 sec. Press enter to start')
-	left, right = calibrate_wink(cap, 5)
-	print(left, right)
-	standard.append(ave(left, right))
-	# both closed
-	input('Keep both your eyes closed for 5 sec. Press enter to start')
-	left, right = calibrate_wink(cap, 5)
-	print(left, right)
-	standard.append(ave(left, right))
-	# left closed
-	input('Keep your left eye closed for 5 sec. Press enter to start')
-	left, right = calibrate_wink(cap, 5)
-	print(left, right)
-	standard.append(ave(left, right))
-	# right closed
-	input('Keep your right eye closed for 5 sec. Press enter to start')
-	left, right = calibrate_wink(cap, 5)
-	print(left, right)
-	standard.append(ave(left, right))
-	
-	return standard
+def check_valid(standard):
+    for val in standard:
+        if val == 0:
+            return False
+    # close > open
+    if standard[0][0] < standard[1][0] or standard[0][1] < standard[1][1]:
+        return False
+    # left > right when left closed
+    if standard[2][0] > standard[2][1]:
+        return False
+    # right > left when right closed
+    if standard[3][1] > standard[3][0]:
+        return False
+    return True
+
+# def calibration(cap, mode, standard):
+# 	# both opened
+# 	if mode == "none":
+# 		cmd = 'Keep both your eyes opened for 5 sec. Press enter to start'
+# 	# both closed    
+# 	elif mode == "both":
+# 		cmd = 'Keep both your eyes closed for 5 sec. Press enter to start'
+# 	# left closed    
+# 	elif mode == "left":
+# 		cmd = 'Keep your left eye closed for 5 sec. Press enter to start'
+# 	# right closed    
+# 	else:
+# 		cmd = 'Keep your right eye closed for 5 sec. Press enter to start'
+
+# 	input(cmd)
+# 	left, right = calibrate_wink(cap, 5)
+# 	print(left, right)
+# 	standard.append(ave(left, right))
+
+# 	return standard
 
 
 if __name__ == "__main__":
 	cap = cv2.VideoCapture(0)
-	standard = calibration(cap)
+ 
+	left_val = []
+	right_val = []
+	standard = []
+	modes = ["none", "both", "left", "right"]
+	for mode in modes:
+		standard = calibration(cap, mode, standard)
 	print(standard)
 	# standard = [(492.03125, 469.5625), (269.8378378378378, 268.0), (210.94594594594594, 265.4054054054054), (302.6216216216216, 215.64864864864865)]
-	detect_wink(cap, standard)
+ 
+	window = []
+	while True:
+		frame = detect_wink(cap, standard, window)
+		cv2.imshow('frame', frame)
+		if cv2.waitKey(1) & 0xFF == ord('q'):
+			break
+
+
 	cap.release()
 	cv2.destroyAllWindows()
     
