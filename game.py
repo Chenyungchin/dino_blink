@@ -16,6 +16,7 @@ BLUE = (0,0,255)
 RED = (255,0,0)
 
 cap = cv2.VideoCapture(0)
+
 modes = ['Keep both your eyes opened for 5 sec. Press enter to start',
          'Keep both your eyes closed for 5 sec. Press enter to start',
          'Keep your left eye closed for 5 sec. Press enter to start',
@@ -51,7 +52,7 @@ class Game(object):
         self.calibrate_count = 0
         self.calibrate_succeed = False
         self.t_start = 0
-        self.interval = 1
+        self.interval = 5
         # detect
         self.window = []
         self.motion = ""
