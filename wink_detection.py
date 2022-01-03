@@ -94,6 +94,8 @@ def detect_wink(cap, standard, window):
 		wink = motion(window, standard)
 		cv2.putText(frame, wink, (10, 120), cv2.FONT_HERSHEY_DUPLEX, 1, (0, 255, 255), 1, cv2.LINE_AA)
 		cv2.imwrite('./src/frame.PNG', frame)
+		return wink
+	return None
 	
 
 

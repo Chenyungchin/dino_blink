@@ -15,7 +15,7 @@ def main():
     done = False
     while not done:
         done = game.process_events(screen)
-        game.run_logic()
+        game.run_logic(screen)
         game.display_frame(screen)
         clock.tick(FPS)
         

@@ -24,11 +24,13 @@ modes = ['Keep both your eyes opened for 5 sec. Press enter to start',
 
 class Game(object):
     standard = [(492.03125, 469.5625), (269.8378378378378, 268.0), (210.94594594594594, 265.4054054054054), (302.6216216216216, 215.64864864864865)]
+    highest_score = 0
     def __init__(self, screen):
         self.font = pygame.font.Font(None, 40)
         # phase
         self.calibrate = False
-        self.gameover = True
+        self.have_not_start = True
+        self.game_over = False
         self.finish_calibrate = False
         self.initial = False
         # setting
@@ -52,8 +54,10 @@ class Game(object):
         self.interval = 1
         # detect
         self.window = []
+        self.motion = ""
+        self.last_motion = ""
         
-    def run_logic(self):
+    def run_logic(self ,screen):
         if self.calibrate and not self.calibrate_stop:
             if time.time() - self.t_start > self.interval:
                 self.standard.append(ave(self.left_val, self.right_val))
@@ -67,13 +71,48 @@ class Game(object):
                     self.calibrate = False
                 print(self.standard)
         
-        if not self.gameover and not self.initial:
+        if not self.have_not_start and not self.initial:
             if self.counter % 700 == 699:
                 self.ground.speed -= 1
                 self.gamespeed += 1
         
         if self.dino.isDead:
-            self.gameover = True
+            self.game_over = True
+            self.gamespeed = 0
+            if self.dino.score > self.highest_score:
+                self.highest_score = self.dino.score
+        
+        # wink activated logic
+        if not self.have_not_start: 
+            motions = {0: 'both eyes opened', 1: 'both eyes closed', 2: 'left eye closed', 3: 'right eye closed'}
+            wink = detect_wink(cap, self.standard, self.window)
+            if wink:
+                self.last_motion = self.motion
+                self.motion = wink
+                if self.initial:
+                    if self.motion == motions[0] and self.last_motion == motions[1]:
+                        self.dino.isJumping = True
+                        self.dino.isBlinking = False
+                        self.dino.movement[1] = -1*self.dino.jumpSpeed
+                elif not self.game_over:
+                    if self.motion == motions[0] and self.last_motion == motions[2]:
+                        if self.dino.rect.bottom == int(0.98*height):
+                            self.dino.isJumping = True
+                            self.dino.movement[1] = -1*self.dino.jumpSpeed
+                    elif self.motion == motions[3]:
+                        if not (self.dino.isJumping and self.dino.isDead):
+                            self.dino.isDucking = True
+                    elif self.motion == motions[0] and self.last_motion == motions[3]:
+                        self.dino.isDucking = False 
+                else:
+                    if self.motion == motions[0] and self.last_motion == motions[1]:
+                        self.__init__(screen)
+                        Cactus.containers = self.enemies[0]
+                        Ptera.containers = self.enemies[1]
+                        Cloud.containers = self.enemies[2]
+                        self.have_not_start = False
+                        self.initial = True
+                        
     
     def process_events(self, screen):
         for event in pygame.event.get():
@@ -84,7 +123,7 @@ class Game(object):
             self.menu.event_handler(event)
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_RETURN:
-                    if self.gameover and not self.calibrate and not self.finish_calibrate:
+                    if self.have_not_start and not self.calibrate and not self.finish_calibrate:
                         if self.menu.state == 0:
                             self.calibrate = True
                             self.standard = []
@@ -93,7 +132,7 @@ class Game(object):
                             Cactus.containers = self.enemies[0]
                             Ptera.containers = self.enemies[1]
                             Cloud.containers = self.enemies[2]
-                            self.gameover = False
+                            self.have_not_start = False
                             self.initial = True
                         elif self.menu.state == 2:
                             cap.release()
@@ -106,7 +145,7 @@ class Game(object):
                         self.finish_calibrate = False
                         self.calibrate = False
                 elif event.key == pygame.K_ESCAPE:
-                    self.gameover = True
+                    self.have_not_start = True
                     self.calibrate = False
                 # test dino run
                 elif event.key == pygame.K_SPACE or event.key == pygame.K_UP:
@@ -114,10 +153,17 @@ class Game(object):
                         self.dino.isJumping = True
                         self.dino.isBlinking = False
                         self.dino.movement[1] = -1*self.dino.jumpSpeed
-                    else:
+                    elif self.game_over == False:
                         if self.dino.rect.bottom == int(0.98*height):
                             self.dino.isJumping = True
                             self.dino.movement[1] = -1*self.dino.jumpSpeed
+                    else:
+                        self.__init__(screen)
+                        Cactus.containers = self.enemies[0]
+                        Ptera.containers = self.enemies[1]
+                        Cloud.containers = self.enemies[2]
+                        self.have_not_start = False
+                        self.initial = True
                 elif event.key == pygame.K_DOWN:
                     if not (self.dino.isJumping and self.dino.isDead):
                         self.dino.isDucking = True
@@ -129,7 +175,7 @@ class Game(object):
     
     def display_frame(self, screen):
         screen.fill(BLACK)
-        if self.gameover:
+        if self.have_not_start:
             if self.calibrate:
                 if self.calibrate_stop:
                     self.display_message(screen, modes[self.calibrate_count])
@@ -151,26 +197,31 @@ class Game(object):
         elif self.initial:
             screen.fill(WHITE)
             self.display_message(screen,"Blink to Start!")
-            detect_wink(cap, self.standard, self.window)
             # frame, frame_rect = load_image('frame.PNG', sizex=800, sizey=600)
             # screen.blit(frame, frame_rect)
             initialscreen(screen, self.dino)
             if not self.dino.isJumping and not self.dino.isBlinking:
                 self.initial = False
+            self.display_message(screen, self.motion, color=(255, 255, 0), pos=(100, 100))
         else:
             screen.fill(WHITE)
-            gamingscreen(screen, self.dino, self.enemies, self.last_obstacle, self.ground, self.counter, self.gamespeed, self.scoreboards)
+            detect_wink(cap, self.standard, self.window)
+            gamingscreen(screen, self.game_over, self.dino, self.enemies, self.last_obstacle, self.ground, self.counter, self.gamespeed, self.scoreboards, self.highest_score)
+            self.display_message(screen, self.motion, color=(255, 255, 0), pos=(100, 100))
         
         pygame.display.flip()
             
-    def display_message(self,screen,message,color=(255,0,0)):
+    def display_message(self,screen,message,color=(255,0,0), pos=(-1, -1)):
         label = self.font.render(message,True,color)
         # Get the width and height of the label
         width = label.get_width()
         height = label.get_height()
         # Determine the position of the label
-        posX = (SCREEN_WIDTH /2) - (width /2)
-        posY = (SCREEN_HEIGHT /2) - (height /2)
+        if pos == (-1, -1):
+            posX = (SCREEN_WIDTH /2) - (width /2)
+            posY = (SCREEN_HEIGHT /2) - (height /2)
+        else:
+            posX, posY = pos
         # Draw the label onto the screen
         screen.blit(label,(posX,posY))
             
