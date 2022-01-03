@@ -57,9 +57,10 @@ class Game(object):
         self.t_start = 0
         self.interval = 5
         # detect
+        self.detect = 0
         self.window = []
         self.motion = ""
-        self.last_motion = ""
+        self.last_motions = ["", ""]
         
     def run_logic(self ,screen):
         if self.calibrate and not self.calibrate_stop:
@@ -87,40 +88,44 @@ class Game(object):
                 self.highest_score = self.dino.score
         
         # wink activated logic
-        if not self.have_not_start: 
-            motions = {0: 'both eyes opened', 1: 'both eyes closed', 2: 'left eye closed', 3: 'right eye closed'}
+        if not self.have_not_start and self.detect == 0: 
+            eye_motions = {0: 'both eyes opened', 1: 'both eyes closed', 2: 'left eye closed', 3: 'right eye closed'}
             wink = detect_wink(cap, self.standard, self.window)
             if wink:
-                self.last_motion = self.motion
+                self.last_motions.pop(0)
+                self.last_motions.append(self.motion)
                 self.motion = wink
                 if self.initial:
                     # start
-                    if self.motion == motions[0] and self.last_motion == motions[1]:
-                        self.dino.isJumping = True
-                        self.dino.isBlinking = False
-                        self.dino.movement[1] = -1*self.dino.jumpSpeed
+                    if self.motion == eye_motions[0] and eye_motions[1] in self.last_motions:
+                        if not self.dino.isJumping:
+                            self.dino.isJumping = True
+                            self.dino.isBlinking = False
+                            self.dino.movement[1] = -1*self.dino.jumpSpeed
                 elif not self.game_over:
                     # jumping
-                    if self.motion == motions[0] and self.last_motion == motions[2]:
+                    if self.motion == eye_motions[0] and eye_motions[2] in self.last_motions:
                         if self.dino.rect.bottom == int(0.98*height):
                             self.dino.isJumping = True
                             self.dino.movement[1] = -1*self.dino.jumpSpeed
                     # ducking
-                    elif self.motion == motions[3]:
+                    elif self.motion == eye_motions[3]:
                         if not (self.dino.isJumping and self.dino.isDead):
                             self.dino.isDucking = True
                     # unducking
-                    elif self.motion != motions[3] and self.last_motion == motions[3]:
+                    elif self.motion != eye_motions[3] and eye_motions[3] in self.last_motions:
                         self.dino.isDucking = False 
                 else:
                     # restart
-                    if self.motion == motions[0] and self.last_motion == motions[1]:
+                    if self.motion == eye_motions[0] and eye_motions[1] in self.last_motions:
                         self.__init__(screen)
                         Cactus.containers = self.enemies[0]
                         Ptera.containers = self.enemies[1]
                         Cloud.containers = self.enemies[2]
                         self.have_not_start = False
                         self.initial = True
+                        
+        self.detect = (self.detect + 1) % 3
                         
     
     def process_events(self, screen):
@@ -159,9 +164,10 @@ class Game(object):
                 # test dino run
                 elif event.key == pygame.K_SPACE or event.key == pygame.K_UP:
                     if self.initial == True:
-                        self.dino.isJumping = True
-                        self.dino.isBlinking = False
-                        self.dino.movement[1] = -1*self.dino.jumpSpeed
+                        if not self.dino.isJumping:
+                            self.dino.isJumping = True
+                            self.dino.isBlinking = False
+                            self.dino.movement[1] = -1*self.dino.jumpSpeed
                     elif self.game_over == False:
                         if self.dino.rect.bottom == int(0.98*height):
                             self.dino.isJumping = True
@@ -214,7 +220,6 @@ class Game(object):
             self.display_message(screen, self.motion, color=(255, 255, 0), pos=(100, 100))
         else:
             screen.fill(WHITE)
-            detect_wink(cap, self.standard, self.window)
             gamingscreen(screen, self.game_over, self.dino, self.enemies, self.last_obstacle, self.ground, self.counter, self.gamespeed, self.scoreboards, self.highest_score)
             self.display_message(screen, self.motion, color=(255, 255, 0), pos=(100, 100))
         
