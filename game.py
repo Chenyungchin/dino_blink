@@ -16,6 +16,9 @@ BLUE = (0,0,255)
 RED = (255,0,0)
 
 cap = cv2.VideoCapture(0)
+# cap.set(cv2.CAP_PROP_FPS, 10)
+# fps = cap.get(cv2.CAP_PROP_FPS)
+# print(fps)
 
 modes = ['Keep both your eyes opened for 5 sec. Press enter to start',
          'Keep both your eyes closed for 5 sec. Press enter to start',
@@ -91,21 +94,26 @@ class Game(object):
                 self.last_motion = self.motion
                 self.motion = wink
                 if self.initial:
+                    # start
                     if self.motion == motions[0] and self.last_motion == motions[1]:
                         self.dino.isJumping = True
                         self.dino.isBlinking = False
                         self.dino.movement[1] = -1*self.dino.jumpSpeed
                 elif not self.game_over:
+                    # jumping
                     if self.motion == motions[0] and self.last_motion == motions[2]:
                         if self.dino.rect.bottom == int(0.98*height):
                             self.dino.isJumping = True
                             self.dino.movement[1] = -1*self.dino.jumpSpeed
+                    # ducking
                     elif self.motion == motions[3]:
                         if not (self.dino.isJumping and self.dino.isDead):
                             self.dino.isDucking = True
-                    elif self.motion == motions[0] and self.last_motion == motions[3]:
+                    # unducking
+                    elif self.motion != motions[3] and self.last_motion == motions[3]:
                         self.dino.isDucking = False 
                 else:
+                    # restart
                     if self.motion == motions[0] and self.last_motion == motions[1]:
                         self.__init__(screen)
                         Cactus.containers = self.enemies[0]
