@@ -70,14 +70,21 @@ def motion(window, standard):
 	# print(left, right)
 	open_delta = abs(standard[0][0] - left) + abs(standard[0][1] - right)
 	close_delta = abs(standard[1][0] - left) + abs(standard[1][1] - right)
+	left_delta = abs(standard[2][0] - left) + abs(standard[2][1] - right)
+	right_delta = abs(standard[3][0] - left) + abs(standard[3][1] - right)
 	left_ratio = standard[2][1] / standard[2][0]
 	right_ratio = standard[3][0] / standard[3][1]
-	if right / left > pow(left_ratio, 0.4):
-		return 'left eye closed'
-	if left / right > pow(right_ratio, 0.4):
-		return 'right eye closed'
-	if open_delta < 1.2*close_delta:
+	# if abs(left_delta - right_delta) > (standard[1][0] + standard[1][1]) / 20:
+	# 	if left_delta < right_delta:
+	# 		return 'left eye closed'
+	# 	else:
+	# 		return 'right eye closed'
+	if open_delta < 1.8*close_delta:
 		return 'both eyes opened'
+	if right / left > pow(left_ratio, 0.45) :
+		return 'left eye closed'
+	if left / right > pow(right_ratio, 0.45):
+		return 'right eye closed'
 	return 'both eyes closed'
         
 
@@ -91,7 +98,7 @@ def detect_wink(cap, standard, window):
 		EAR_left = eye_aspect_ratio(shape, left, frame)
 		EAR_right = eye_aspect_ratio(shape, right, frame)
 		window.append((EAR_left, EAR_right))
-		if len(window) > 2:
+		if len(window) > 1:
 			window.pop(0)
 		wink = motion(window, standard)
 		cv2.putText(frame, wink, (10, 120), cv2.FONT_HERSHEY_DUPLEX, 1, (0, 255, 255), 1, cv2.LINE_AA)
@@ -148,24 +155,25 @@ def check_valid(standard):
 if __name__ == "__main__":
 	cap = cv2.VideoCapture(0)
 
-	standard = []
-	modes = ["none", "both", "left", "right"]
-	for mode in modes:
-		left_val = []
-		right_val = []
-		input('dao')
-		t_start = time.time()
-		while time.time() - t_start < 5:
-			ear = calibrate_wink(cap)
-			if ear:
-				left_val.append(ear[0])
-				right_val.append(ear[1])
-			if cv2.waitKey(1) & 0xFF == ord('q'):
-				break
-		standard.append(ave(left_val, right_val))
-	print(standard)
+	# standard = []
+	# modes = ["none", "both", "left", "right"]
+	# for mode in modes:
+	# 	left_val = []
+	# 	right_val = []
+	# 	input('dao')
+	# 	t_start = time.time()
+	# 	while time.time() - t_start < 5:
+	# 		ear = calibrate_wink(cap)
+	# 		if ear:
+	# 			left_val.append(ear[0])
+	# 			right_val.append(ear[1])
+	# 		if cv2.waitKey(1) & 0xFF == ord('q'):
+	# 			break
+	# 	standard.append(ave(left_val, right_val))
+	# print(standard)
 	# standard = [(492.03125, 469.5625), (269.8378378378378, 268.0), (210.94594594594594, 265.4054054054054), (302.6216216216216, 215.64864864864865)]
- 
+	standard = [(602.2, 611.7666666666667), (328.0, 339.3333333333333), (344.5, 375.55882352941177), (326.94117647058823, 242.64705882352942)]
+
 	window = []
 	detect = 0
 	while True:

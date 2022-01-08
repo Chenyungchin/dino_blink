@@ -27,7 +27,7 @@ modes = ['Keep both your eyes opened for 5 sec. Press enter to start',
 
 
 class Game(object):
-    standard = [(492.03125, 469.5625), (269.8378378378378, 268.0), (210.94594594594594, 265.4054054054054), (302.6216216216216, 215.64864864864865)]
+    standard = [(492.03125, 469.5625), (269.8378378378378, 268.0), (210.94594594594594, 265.4054054054054), (302.6216216216216, 275.64864864864865)]
     highest_score = 0
     def __init__(self, screen):
         self.font = pygame.font.Font(None, 40)
@@ -103,8 +103,14 @@ class Game(object):
                             self.dino.isBlinking = False
                             self.dino.movement[1] = -1*self.dino.jumpSpeed
                 elif not self.game_over:
+                    # pre_jumping
+                    if self.motion == eye_motions[2] and self.dino.isJumping == False:
+                        self.dino.preJumping = True
+                    if self.motion == eye_motions[3]:
+                        self.dino.preJumping = False
                     # jumping
-                    if self.motion == eye_motions[0] and eye_motions[2] in self.last_motions:
+                    if self.motion == eye_motions[0] and self.dino.preJumping:
+                        self.dino.preJumping = False
                         if self.dino.rect.bottom == int(0.98*height):
                             self.dino.isJumping = True
                             self.dino.movement[1] = -1*self.dino.jumpSpeed
@@ -113,7 +119,7 @@ class Game(object):
                         if not (self.dino.isJumping and self.dino.isDead):
                             self.dino.isDucking = True
                     # unducking
-                    elif self.motion != eye_motions[3] and eye_motions[3] in self.last_motions:
+                    elif self.motion == eye_motions[0] and self.dino.isDucking:
                         self.dino.isDucking = False 
                 else:
                     # restart

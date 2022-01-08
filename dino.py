@@ -114,6 +114,7 @@ class Dino():
         self.index = 0
         self.counter = 0
         self.score = 0
+        self.preJumping = False
         self.isJumping = False
         self.isDead = False
         self.isDucking = False
